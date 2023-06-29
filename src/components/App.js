@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import { auth } from '../utils/Auth';
+import { auth } from '../utils/auth';
 import Header from './Header';
 import Main from './Main';
 import Footer from './Footer';
@@ -16,6 +16,8 @@ import AddPlacePopup from './AddPlacePopup';
 
 import authImageOk from '../images/authImageOk.png';
 import authImageError from '../images/authImageError.png';
+
+import { loginErrors } from '../utils/constants';
 
 import { CurrentUserContext } from '../contexts/CurrentUserContext';
 
@@ -37,22 +39,22 @@ function App() {
   const [authPopupInfo, setAuthPopupInfo] = useState({ img: '', text: '' });
 
   useEffect(() => {
-    api
-      .getUserInfo()
-      .then(res => {
-        setCurrentUser(res);
-      })
-      .catch(err => console.log(err));
-  }, []);
+    if (loggedIn) {
+      api
+        .getUserInfo()
+        .then(res => {
+          setCurrentUser(res);
+        })
+        .catch(err => console.log(err));
 
-  useEffect(() => {
-    api
-      .getInitialCards()
-      .then(res => {
-        setCards(res);
-      })
-      .catch(err => console.log(err));
-  }, []);
+      api
+        .getInitialCards()
+        .then(res => {
+          setCards(res);
+        })
+        .catch(err => console.log(err));
+    }
+  }, [loggedIn]);
 
   useEffect(() => {
     const jwt = localStorage.getItem('jwt');
@@ -69,6 +71,20 @@ function App() {
         });
     }
   }, [navigate]);
+
+  // на вход принимает объект с текстами ошибок при регистрации\авторизации , а возвращает готовый обработчик
+  const handleAuthError = errorMessages => error => {
+    const errorStatus = Number(error.replace('Ошибка: ', ''));
+
+    const errorText = errorStatus && errorMessages?.[errorStatus] ? errorMessages[errorStatus] : 'Что-то пошло не так! Попробуйте еще раз!';
+
+    popupInfoSelector({
+      img: authImageError,
+      text: errorText
+    });
+
+    setAuthPopupOpen(true);
+  };
 
   function handleEditAvatarClick() {
     setEditAvatarPopupOpen(true);
@@ -161,22 +177,7 @@ function App() {
         }, 3000);
         setEmail(email); // TODO
       })
-      .catch(err => {
-        setAuthPopupOpen(true);
-
-        let text = '';
-        switch (Number(err.split(' ')[1])) {
-          case 400:
-            text = 'Некорректно заполнено одно из полей ';
-            break;
-          default:
-            text = 'Что-то пошло не так! Попробуйте еще раз!';
-        }
-        popupInfoSelector({
-          img: authImageError,
-          text
-        });
-      });
+      .catch(handleAuthError(loginErrors));
   }
 
   function authorization({ email, password }) {
@@ -188,27 +189,7 @@ function App() {
         setLoggedIn(authImageError);
         navigate('/');
       })
-      .catch(err => {
-        console.log(err.split(' ')[1]);
-        setLoggedIn(false);
-        setAuthPopupOpen(true);
-
-        let text = '';
-        switch (Number(err.split(' ')[1])) {
-          case 400:
-            text = 'Не передано одно из полей';
-            break;
-          case 401:
-            text = 'Пользователь с таким e-mail не найден';
-            break;
-          default:
-            text = 'Что-то пошло не так! Попробуйте еще раз!';
-        }
-        popupInfoSelector({
-          img: authImageError,
-          text
-        });
-      });
+      .catch(handleAuthError(loginErrors));
   }
 
   function signOut() {

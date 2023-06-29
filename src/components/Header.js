@@ -39,10 +39,6 @@ function Header({ loggedIn, email, onSignOut }) {
     };
   }, []);
 
-  useEffect(() => {
-    console.log(isMobile);
-  }, [isMobile]);
-
   return (
     <>
       {isOpen && (
